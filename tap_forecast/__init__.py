@@ -61,7 +61,7 @@ def discover():
             table=None,
             row_count=None,
             stream_alias=None,
-            replication_method=None,
+            replication_method='FULL_TABLE',
             ))
 
     return Catalog(streams)
@@ -419,7 +419,7 @@ def sync(config, state, catalog):
 
     sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
 
-    sync_endpoint("tasks","https://api.forecast.it/api/v2/tasks",None,None,None,None,None,'updated_after')
+    sync_endpoint("tasks","https://api.forecast.it/api/v2/tasks",None,None,None,None,None)
     sync_endpoint("clients")
     sync_endpoint("connected_projects")
     sync_endpoint("holiday_calendar_entries")
@@ -431,7 +431,7 @@ def sync(config, state, catalog):
     sync_rate_cards("rate_cards")
      #sync_endpoint("repeating_tasks")
     sync_endpoint("roles")
-    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations",None,None,None,None,None,'updated_after')
+    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations",None,None,None,None,None)
 
     return
 
