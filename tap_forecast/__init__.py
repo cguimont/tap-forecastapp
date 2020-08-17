@@ -47,7 +47,7 @@ def discover():
 
         # TODO: populate any metadata and stream's key properties here..
 
-        stream_metadata = []
+        stream_metadata = [{"breadcrumb":[],"metadata":{"replication-method": "FULL_TABLE",}}]
         key_properties = []
         streams.append(CatalogEntry(
             tap_stream_id=stream_id,
@@ -60,8 +60,7 @@ def discover():
             database=None,
             table=None,
             row_count=None,
-            stream_alias=None,
-            replication_method='FULL_TABLE',
+            stream_alias=None
             ))
 
     return Catalog(streams)
@@ -279,8 +278,7 @@ def sync_project(  # pylint: disable=too-many-arguments
     schema = load_schema(schema_name)
     bookmark_property = 'updated_at'
     LOGGER.info('Loading ' + schema_name)
-    singer.write_schema(schema_name, schema, ['id'],
-                        bookmark_properties=[bookmark_property])
+    singer.write_schema(schema_name, schema, ['id'])
 
     start = get_start(schema_name)
 
@@ -293,11 +291,15 @@ def sync_project(  # pylint: disable=too-many-arguments
         for row in response:
 
             item = transformer.transform(row, schema)
-
+            LOGGER.info('Loading ' + str(row['external_refs']))
             time_extracted = utils.now()
+            harvest_project_id = None
+            extn = row['external_refs']
+            for refs in extn:
+                if refs['name'] is 'harvest_project_id':
+                   harvest_project_id = refs['value']
 
             # find related
-
             sync_endpoint('expense_items', BASE_API_URL + 'projects/'
                           + str(row['id']) + '/expense_items', None,
                           'project_id', str(row['id']))
@@ -331,6 +333,7 @@ def sync_project(  # pylint: disable=too-many-arguments
                 ['project_id'],
                 )
 
+            
             if bookmark_property in item and item[bookmark_property] \
                 >= start:
                 singer.write_record(schema_name, item,
@@ -415,6 +418,7 @@ def sync(config, state, catalog):
     LOGGER.info('Starting sync')
 
     sync_project("projects")
+    
     sync_endpoint("allocations")
 
     sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
