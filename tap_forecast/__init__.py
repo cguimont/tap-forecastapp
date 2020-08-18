@@ -289,15 +289,14 @@ def sync_project(  # pylint: disable=too-many-arguments
         response = request(url, None)
 
         for row in response:
-
+            for refs in row['external_refs']:
+                if refs['name'] == 'harvest_project_id':
+                    LOGGER.info('Loading in if' + str(refs))
+                    row['connected_project'] = refs['value']
             item = transformer.transform(row, schema)
-            LOGGER.info('Loading ' + str(row['external_refs']))
             time_extracted = utils.now()
-            harvest_project_id = None
-            extn = row['external_refs']
-            for refs in extn:
-                if refs['name'] is 'harvest_project_id':
-                   harvest_project_id = refs['value']
+            
+            
 
             # find related
             sync_endpoint('expense_items', BASE_API_URL + 'projects/'
