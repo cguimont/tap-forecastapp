@@ -16,16 +16,8 @@
       "items": {
         "type": [
           "null",
-          "object"
-        ],
-        "properties": {
-          "person": {
-            "type": [
-              "null",
-              "integer"
-            ]
-          }
-        }
+          "integer"
+        ]
       }
     },
     "created_at": {
