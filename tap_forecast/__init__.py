@@ -434,6 +434,7 @@ def sync(config, state, catalog):
     sync_rate_cards("rate_cards")
      #sync_endpoint("repeating_tasks")
     sync_endpoint("roles")
+    sync_endpoint("teams")
     sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations",None,None,None,None,None)
 
     return
