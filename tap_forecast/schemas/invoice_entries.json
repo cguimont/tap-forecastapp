@@ -11,7 +11,10 @@
 				"type":["null","string"]
 			},
 			"quantity": {
-				"type":["null","integer"]
+				"type":["null","number"]
+			},
+			"project_id": {
+				"type":["null","number"]
 			},
 			"unit_price": {
 				"type":["null","number"]
