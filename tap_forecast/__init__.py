@@ -186,7 +186,7 @@ def sync_endpoint_with_pager(
         while cnt < number_of_items:
             url = get_url(endpoint or schema_name)
             url = endpoint or url
-            url = url + '?' + "pageNumber=" cur_page
+            url = url + '?' + "pageNumber=" + cur_page
             if parameter_for_updated is not None:
                 url = url + '&' + parameter_for_updated + '=' + updated_since
 
@@ -194,7 +194,7 @@ def sync_endpoint_with_pager(
             LOGGER.info('URL :' + url)
             cnt += response.pageSize
             number_of_items = response.totalObjectCount
-
+            cur_page = cur_page + 1
             time_extracted = utils.now()
 
             for row in response[pageContents]:
