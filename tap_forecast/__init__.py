@@ -155,6 +155,75 @@ def sync_endpoint(
                                    item[bookmark_property])
     singer.write_state(STATE)
 
+def sync_endpoint_with_pager(
+    schema_name,
+    endpoint=None,
+    path=None,
+    special_field_name=None,
+    special_field_value=None,
+    keys=None,
+    object_to_id=None,
+    parameter_for_updated=None
+    ):
+    schema = load_schema(schema_name)
+    bookmark_property = 'updated_at'
+    LOGGER.info('Loading ' + schema_name)
+    if keys is None:
+        keys = ['id']
+    singer.write_schema(schema_name, schema, keys,
+                        bookmark_properties=[bookmark_property])
+
+    start = get_start(schema_name)
+    start_dt = datetime.datetime.strptime(start,
+                    '%Y-%m-%dT%H:%M:%S.%fZ')
+    updated_since = start_dt.strftime("%Y%m%dT%H%M%S")
+    LOGGER.info('updated_since ' + updated_since)
+    with Transformer() as transformer:
+
+        number_of_items = 99999
+        cnt = 0
+        cur_page = 1
+        while cnt < number_of_items:
+            url = get_url(endpoint or schema_name)
+            url = endpoint or url
+            url = url + '?' + "pageNumber=" cur_page
+            if parameter_for_updated is not None:
+                url = url + '&' + parameter_for_updated + '=' + updated_since
+
+            response = request(url, None)
+            LOGGER.info('URL :' + url)
+            cnt += response.pageSize
+            number_of_items = response.totalObjectCount
+
+            time_extracted = utils.now()
+
+            for row in response[pageContents]:
+
+                if special_field_name is not None:
+                    row[special_field_name] = special_field_value
+
+                if object_to_id is not None:
+                    for key in object_to_id:
+                        if row[key] is not None:
+                            row[key + '_id'] = row[key]['id']
+                        else:
+                            row[key + '_id'] = None
+
+                item = transformer.transform(row, schema)
+
+                if not bookmark_property in item:
+                    item[bookmark_property] = \
+                        datetime.datetime.now().strftime('%Y-%m-%d') \
+                        + 'T00:00:00.00Z'
+
+                if  datetime.datetime.strptime(item[bookmark_property],'%Y-%m-%dT%H:%M:%S.%fZ') >= start_dt:
+                    singer.write_record(schema_name, item,
+                                        time_extracted=time_extracted)
+
+                    utils.update_state(STATE, schema_name,
+                                       item[bookmark_property])
+    singer.write_state(STATE)
+
 
 def sync_allocations(
     schema_name,
@@ -299,15 +368,15 @@ def sync_project(  # pylint: disable=too-many-arguments
             
 
             # find related
-            sync_endpoint('expense_items', BASE_API_URL + 'projects/'
-                          + str(row['id']) + '/expense_items', None,
-                          'project_id', str(row['id']))
+#            sync_endpoint('expense_items', BASE_API_URL + 'projects/'
+#                          + str(row['id']) + '/expense_items', None,
+#                          'project_id', str(row['id']))
             sync_endpoint('invoices', BASE_API_URL + 'projects/'
                           + str(row['id']) + '/invoices', None,
                           'project_id', str(row['id']))
-            sync_endpoint('milestones', BASE_API_URL + 'projects/'
-                          + str(row['id']) + '/milestones', None,
-                          'project_id', str(row['id']))
+ #           sync_endpoint('milestones', BASE_API_URL + 'projects/'
+ #                         + str(row['id']) + '/milestones', None,
+ #                         'project_id', str(row['id']))
             sync_endpoint(
                 'project_team',
                 BASE_API_URL + 'projects/' + str(row['id']) + '/team',
@@ -316,23 +385,23 @@ def sync_project(  # pylint: disable=too-many-arguments
                 str(row['id']),
                 ['person_id', 'project_id'],
                 )
-            sync_endpoint('sprints', BASE_API_URL + 'projects/'
-                          + str(row['id']) + '/sprints', None,
-                          'project_id', str(row['id']))
-            sync_endpoint('workflow_columns', BASE_API_URL + 'projects/'
-                           + str(row['id']) + '/workflow_columns',
-                          None, 'project_id', str(row['id']))
-            sync_endpoint(
-                'project_financials',
-                BASE_API_URL + 'projects/' + str(row['id'])
-                    + '/financials',
-                None,
-                None,
-                None,
-                ['project_id'],
-                )
+#            sync_endpoint('sprints', BASE_API_URL + 'projects/'
+#                          + str(row['id']) + '/sprints', None,
+#                          'project_id', str(row['id']))
+#            sync_endpoint('workflow_columns', BASE_API_URL + 'projects/'
+#                           + str(row['id']) + '/workflow_columns',
+#                          None, 'project_id', str(row['id']))
+#            sync_endpoint(
+#                'project_financials',
+#                BASE_API_URL + 'projects/' + str(row['id'])
+#                    + '/financials',
+#                None,
+#                None,
+#                None,
+#                ['project_id'],
+#                )
 
-            
+
             if bookmark_property in item and item[bookmark_property] \
                 >= start:
                 singer.write_record(schema_name, item,
@@ -417,25 +486,25 @@ def sync(config, state, catalog):
     LOGGER.info('Starting sync')
 
     sync_project("projects")
-    
+
     sync_endpoint("allocations")
 
     sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
 
-    sync_endpoint("tasks","https://api.forecast.it/api/v2/tasks",None,None,None,None,None)
+    sync_endpoint_with_pager("tasks","https://api.forecast.it/api/v3/tasks")
     sync_endpoint("clients")
     sync_endpoint("connected_projects")
     sync_endpoint("holiday_calendar_entries")
     sync_endpoint("holiday_calendars")
-    sync_endpoint("labels")
+#    sync_endpoint("labels")
     sync_endpoint("non_project_time")
     sync_endpoint("persons")
-    sync_endpoint("person_cost_periods")
+#    sync_endpoint("person_cost_periods")
     sync_rate_cards("rate_cards")
      #sync_endpoint("repeating_tasks")
     sync_endpoint("roles")
     sync_endpoint("teams")
-    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations",None,None,None,None,None)
+    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations?updated_after=20210101T000000",None,None,None,None,None)
 
     return
 
