@@ -491,7 +491,7 @@ def sync(config, state, catalog):
 
     sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
 
-    sync_endpoint_with_pager("tasks","https://api.forecast.it/api/v3/tasks")
+    sync_endpoint_with_pager("tasks","https://api.forecast.it/api/v4/tasks")
     sync_endpoint("clients")
     sync_endpoint("connected_projects")
     sync_endpoint("holiday_calendar_entries")
