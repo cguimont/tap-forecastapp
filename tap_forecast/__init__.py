@@ -186,7 +186,7 @@ def sync_endpoint_with_pager(
         while cnt < number_of_items:
             url = get_url(endpoint or schema_name)
             url = endpoint or url
-            url = url + '?' + "pageNumber=" + cur_page
+            url = url + '?' + "pageNumber=" + str(cur_page)
             if parameter_for_updated is not None:
                 url = url + '&' + parameter_for_updated + '=' + updated_since
 
@@ -485,26 +485,26 @@ def sync(config, state, catalog):
 
     LOGGER.info('Starting sync')
 
-    sync_project("projects")
+ #   sync_project("projects")
 
-    sync_endpoint("allocations")
+ #   sync_endpoint("allocations")
 
-    sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
+ #   sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
 
     sync_endpoint_with_pager("tasks","https://api.forecast.it/api/v4/tasks")
-    sync_endpoint("clients")
-    sync_endpoint("connected_projects")
-    sync_endpoint("holiday_calendar_entries")
-    sync_endpoint("holiday_calendars")
+ #   sync_endpoint("clients")
+ #   sync_endpoint("connected_projects")
+#    sync_endpoint("holiday_calendar_entries")
+ #   sync_endpoint("holiday_calendars")
 #    sync_endpoint("labels")
-    sync_endpoint("non_project_time")
-    sync_endpoint("persons")
+#    sync_endpoint("non_project_time")
+#    sync_endpoint("persons")
 #    sync_endpoint("person_cost_periods")
-    sync_rate_cards("rate_cards")
+#    sync_rate_cards("rate_cards")
      #sync_endpoint("repeating_tasks")
-    sync_endpoint("roles")
-    sync_endpoint("teams")
-    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations?updated_after=20210101T000000",None,None,None,None,None)
+#    sync_endpoint("roles")
+#    sync_endpoint("teams")
+#    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations?updated_after=20210101T000000",None,None,None,None,None)
 
     return
 
