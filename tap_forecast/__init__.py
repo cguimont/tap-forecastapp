@@ -211,17 +211,12 @@ def sync_endpoint_with_pager(
 
                 item = transformer.transform(row, schema)
 
-                if not bookmark_property in item:
-                    item[bookmark_property] = \
-                        datetime.datetime.now().strftime('%Y-%m-%d') \
-                        + 'T00:00:00.00Z'
+                
+                singer.write_record(schema_name, item,
+                                    time_extracted=time_extracted)
 
-                if  datetime.datetime.strptime(item[bookmark_property],'%Y-%m-%dT%H:%M:%S.%fZ') >= start_dt:
-                    singer.write_record(schema_name, item,
-                                        time_extracted=time_extracted)
-
-                    utils.update_state(STATE, schema_name,
-                                       item[bookmark_property])
+                utils.update_state(STATE, schema_name,
+                                   item[bookmark_property])
     singer.write_state(STATE)
 
 
