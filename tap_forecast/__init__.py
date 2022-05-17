@@ -186,7 +186,7 @@ def sync_endpoint_with_pager(
         while cnt < number_of_items:
             url = get_url(endpoint or schema_name)
             url = endpoint or url
-            url = url + '?' + "pageNumber=" + str(cur_page)
+            url = url + '?' + "pageSize=1000&pageNumber=" + str(cur_page)
             if parameter_for_updated is not None:
                 url = url + '&' + parameter_for_updated + '=' + updated_since
 
