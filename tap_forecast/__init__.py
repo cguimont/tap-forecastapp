@@ -192,8 +192,8 @@ def sync_endpoint_with_pager(
 
             response = request(url, None)
             LOGGER.info('URL :' + url)
-            cnt += response.pageSize
-            number_of_items = response.totalObjectCount
+            cnt += response[pageSize]
+            number_of_items = response[totalObjectCount]
             cur_page = cur_page + 1
             time_extracted = utils.now()
 
