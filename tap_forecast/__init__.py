@@ -6,6 +6,7 @@ import json
 import datetime
 import requests
 import singer
+import argparse
 
 from singer import Transformer, utils, metadata
 from singer.catalog import Catalog, CatalogEntry
@@ -40,15 +41,15 @@ def load_schemas():
     return schemas
 
 
-def discover():
+def discover(full_sync):
     raw_schemas = load_schemas()
     streams = []
     for (stream_id, schema) in raw_schemas.items():
 
         # TODO: populate any metadata and stream's key properties here..
-
-        stream_metadata = [{"breadcrumb":[],"metadata":{"replication-method": "FULL_TABLE",}}]
-        key_properties = []
+        
+        stream_metadata = [{"breadcrumb":[],"metadata":{"replication-method": "INCREMENTAL",}}]
+        key_properties = ['id']
         streams.append(CatalogEntry(
             tap_stream_id=stream_id,
             stream=stream_id,
@@ -109,9 +110,10 @@ def sync_endpoint(
     if keys is None:
         keys = ['id']
     singer.write_schema(schema_name, schema, keys,
-                        bookmark_properties=[bookmark_property])
+                        bookmark_properties=['bookmark_property'])
 
     start = get_start(schema_name)
+    
     start_dt = datetime.datetime.strptime(start,
                     '%Y-%m-%dT%H:%M:%S.%fZ')
     updated_since = start_dt.strftime("%Y%m%dT%H%M%S")
@@ -120,8 +122,9 @@ def sync_endpoint(
         url = get_url(endpoint or schema_name)
         url = endpoint or url
         if parameter_for_updated is not None:
-            url = url + '?' + parameter_for_updated + '=' + updated_since
+            url = url  + parameter_for_updated + '/' + updated_since
         response = request(url, None)
+        
         LOGGER.info('URL :' + url)
         if schema_name is 'project_financials':
             response = [response]
@@ -141,18 +144,18 @@ def sync_endpoint(
                         row[key + '_id'] = None
 
             item = transformer.transform(row, schema)
-
+            
             if not bookmark_property in item:
                 item[bookmark_property] = \
                     datetime.datetime.now().strftime('%Y-%m-%d') \
                     + 'T00:00:00.00Z'
 			
-            if  datetime.datetime.strptime(item[bookmark_property],'%Y-%m-%dT%H:%M:%S.%fZ') >= start_dt:
-                singer.write_record(schema_name, item,
-                                    time_extracted=time_extracted)
+            #if  datetime.datetime.strptime(item[bookmark_property],'%Y-%m-%dT%H:%M:%S.%fZ') >= start_dt:
+            singer.write_record(schema_name, item,
+                                time_extracted=time_extracted)
 
-                utils.update_state(STATE, schema_name,
-                                   item[bookmark_property])
+            utils.update_state(STATE, schema_name,
+                                item[bookmark_property])
     singer.write_state(STATE)
 
 def sync_endpoint_with_pager(
@@ -172,8 +175,9 @@ def sync_endpoint_with_pager(
         keys = ['id']
     singer.write_schema(schema_name, schema, keys,
                         bookmark_properties=[bookmark_property])
-
+    
     start = get_start(schema_name)
+    LOGGER.info('start' + start)
     start_dt = datetime.datetime.strptime(start,
                     '%Y-%m-%dT%H:%M:%S.%fZ')
     updated_since = start_dt.strftime("%Y%m%dT%H%M%S")
@@ -186,9 +190,10 @@ def sync_endpoint_with_pager(
         while cnt < number_of_items:
             url = get_url(endpoint or schema_name)
             url = endpoint or url
-            url = url + '?' + "pageSize=1000&pageNumber=" + str(cur_page)
             if parameter_for_updated is not None:
-                url = url + '&' + parameter_for_updated + '=' + updated_since
+                url = url  + parameter_for_updated + '/' + updated_since
+            url = url + '?' + "pageSize=1000&pageNumber=" + str(cur_page)
+
 
             response = request(url, None)
             LOGGER.info('URL :' + url)
@@ -208,7 +213,8 @@ def sync_endpoint_with_pager(
                             row[key + '_id'] = row[key]['id']
                         else:
                             row[key + '_id'] = None
-
+                if "description" in row and isinstance(row['description'],str):
+                    row['description'] = row['description'].encode('utf-8', 'replace').decode()
                 item = transformer.transform(row, schema)
 
 
@@ -366,20 +372,20 @@ def sync_project(  # pylint: disable=too-many-arguments
 #            sync_endpoint('expense_items', BASE_API_URL + 'projects/'
 #                          + str(row['id']) + '/expense_items', None,
 #                          'project_id', str(row['id']))
-            sync_endpoint('invoices', BASE_API_URL + 'projects/'
-                          + str(row['id']) + '/invoices', None,
+#            sync_endpoint('invoices', BASE_API_URL + 'projects/'
+#                          + str(row['id']) + '/invoices', None,
+#                          'project_id', str(row['id']))
+            sync_endpoint('phases', BASE_API_URL + 'projects/'
+                          + str(row['id']) + '/phases', None,
                           'project_id', str(row['id']))
- #           sync_endpoint('milestones', BASE_API_URL + 'projects/'
- #                         + str(row['id']) + '/milestones', None,
- #                         'project_id', str(row['id']))
-            sync_endpoint(
-                'project_team',
-                BASE_API_URL + 'projects/' + str(row['id']) + '/team',
-                None,
-                'project_id',
-                str(row['id']),
-                ['person_id', 'project_id'],
-                )
+#            sync_endpoint(
+#                'project_team',
+#                BASE_API_URL + 'projects/' + str(row['id']) + '/team',
+#                None,
+#                'project_id',
+#                str(row['id']),
+#                ['person_id', 'project_id'],
+#                )
 #            sync_endpoint('sprints', BASE_API_URL + 'projects/'
 #                          + str(row['id']) + '/sprints', None,
 #                          'project_id', str(row['id']))
@@ -479,28 +485,29 @@ def sync(config, state, catalog):
     # Loop over selected streams in catalog
 
     LOGGER.info('Starting sync')
+    if CONFIG['run_type'] == "project":
+        sync_project("projects")
+        sync_endpoint("clients")
+        sync_endpoint("connected_projects")
+        sync_endpoint("invoices")
+    elif CONFIG['run_type'] == "allocation":
+        sync_endpoint("allocations")
+        sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
+    elif CONFIG['run_type'] == "tasks":
+        sync_endpoint_with_pager("tasks","https://api.forecast.it/api/v4/tasks/",None,None,None,None,None,"updated_after")
+    elif CONFIG['run_type'] == "settings":
+        sync_endpoint("holiday_calendar_entries")
+        sync_endpoint("holiday_calendars")
+        sync_endpoint("labels")
+        sync_endpoint("persons")
+        sync_endpoint("person_cost_periods")
+        sync_rate_cards("rate_cards")
+        sync_endpoint("roles")
+        sync_endpoint("teams")
+    elif CONFIG['run_type'] == "time":
+        sync_endpoint_with_pager("time_registrations","https://api.forecast.it/api/v4/time_registrations/",None,None,None,None,None,"updated_after")
 
-    sync_project("projects")
-
-    sync_endpoint("allocations")
-
-    sync_allocations('allocations_perday', BASE_API_URL + 'allocations')
-
-    sync_endpoint_with_pager("tasks","https://api.forecast.it/api/v4/tasks")
-    sync_endpoint("clients")
- #   sync_endpoint("connected_projects")
-    sync_endpoint("holiday_calendar_entries")
-    sync_endpoint("holiday_calendars")
-    sync_endpoint("labels")
-    sync_endpoint("non_project_time")
-    sync_endpoint("persons")
-    sync_endpoint("person_cost_periods")
-    sync_rate_cards("rate_cards")
-     #sync_endpoint("repeating_tasks")
-    sync_endpoint("roles")
-    sync_endpoint("teams")
-    sync_endpoint("time_registrations","https://api.forecast.it/api/v3/time_registrations?updated_after=20210101T000000",None,None,None,None,None)
-
+   
     return
 
 
@@ -508,12 +515,12 @@ def sync(config, state, catalog):
 def main():
 
     # Parse command line arguments
-
+    
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
     CONFIG.update(args.config)
     STATE.update(args.state)
     # If discover flag was passed, run discovery mode and dump output to stdout
-
+   
     if args.discover:
         catalog = discover()
         catalog.dump()
