@@ -41,7 +41,7 @@ def load_schemas():
     return schemas
 
 
-def discover(full_sync):
+def discover():
     raw_schemas = load_schemas()
     streams = []
     for (stream_id, schema) in raw_schemas.items():
