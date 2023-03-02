@@ -268,7 +268,7 @@ def sync_allocations(
 
             date = datetime.datetime.strptime(row['start_date'],
                     '%Y-%m-%d')
-            LOGGER.info("Project" + str(row['project']) + "-" + str(row['person']))
+            #LOGGER.info("Project" + str(row['project']) + "-" + str(row['person']))
             end_date = datetime.datetime.strptime(row['end_date'],
                     '%Y-%m-%d')
             
