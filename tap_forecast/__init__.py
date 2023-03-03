@@ -50,6 +50,8 @@ def discover():
         
         stream_metadata = [{"breadcrumb":[],"metadata":{"replication-method": "INCREMENTAL",}}]
         key_properties = ['id']
+        if stream_id == "tasks_persons":
+            key_properties=['person_id','task_id']
         streams.append(CatalogEntry(
             tap_stream_id=stream_id,
             stream=stream_id,
@@ -149,6 +151,15 @@ def sync_endpoint(
                 item[bookmark_property] = \
                     datetime.datetime.now().strftime('%Y-%m-%d') \
                     + 'T00:00:00.00Z'
+            if schema_name == "tasks":
+                LOGGER.info(item)
+                for person in item["persons"]:
+                    newRow = {}
+                    newRow['task_id'] = item["id"]
+                    newRow['person_id'] = person
+                    LOGGER.info(newRow)
+                    
+                
 			
             #if  datetime.datetime.strptime(item[bookmark_property],'%Y-%m-%dT%H:%M:%S.%fZ') >= start_dt:
             singer.write_record(schema_name, item,
@@ -175,7 +186,10 @@ def sync_endpoint_with_pager(
         keys = ['id']
     singer.write_schema(schema_name, schema, keys,
                         bookmark_properties=[bookmark_property])
-    
+    if schema_name == "tasks":
+        tasks_persons = load_schema("tasks_persons")
+        singer.write_schema("tasks_persons", tasks_persons, ["person_id","task_id"],bookmark_properties=[bookmark_property])
+
     start = get_start(schema_name)
     LOGGER.info('start' + start)
     start_dt = datetime.datetime.strptime(start,
@@ -201,9 +215,10 @@ def sync_endpoint_with_pager(
             number_of_items = response['totalObjectCount']
             cur_page = cur_page + 1
             time_extracted = utils.now()
-
+            if cur_page > 10:
+                break
             for row in response['pageContents']:
-
+                
                 if special_field_name is not None:
                     row[special_field_name] = special_field_value
 
@@ -217,10 +232,17 @@ def sync_endpoint_with_pager(
                     row['description'] = row['description'].encode('utf-8', 'replace').decode()
                 item = transformer.transform(row, schema)
 
+                if schema_name == "tasks":
+                    for person in row["assigned_persons"]:
+                        newRow = {}
+                        newRow['task_id'] = item["id"]
+                        newRow['person_id'] = person
+                        singer.write_record('tasks_persons', newRow,
+                                    time_extracted=time_extracted)
 
                 singer.write_record(schema_name, item,
                                     time_extracted=time_extracted)
-
+                
                 utils.update_state(STATE, schema_name,
                                    item[bookmark_property])
     singer.write_state(STATE)

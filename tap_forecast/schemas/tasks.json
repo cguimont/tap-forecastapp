@@ -64,18 +64,8 @@
 		"owner_id": {
             "type": ["null", "integer"]
 		},
-		"assigned_persons": {
-            "type": ["null", "array"],
-            "items": {
-            	"type": ["null", "integer"]
-            }
-		},
-		"labels": {
-            "type": ["null", "array"],
-            "items": {
-            	"type": ["null", "integer"]
-            }
-		},
+		
+		
 		"created_by": {
             "type": ["null", "integer"]
 		},

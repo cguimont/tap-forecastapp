@@ -1,0 +1,14 @@
+{
+    "type": ["null", "object"],
+    "additionalProperties": false,
+    "properties": {
+      	"task_id": {
+            "type": ["null","integer"]
+		},
+      	"person_id": {
+            "type": ["null","integer"]
+		}
+		
+		
+    }
+}
